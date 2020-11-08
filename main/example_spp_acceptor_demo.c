@@ -20,6 +20,8 @@
 #include "esp_gap_bt_api.h"
 #include "esp_bt_device.h"
 #include "esp_spp_api.h"
+#include "esp_camera.h"
+#include "config.h"
 
 #include "time.h"
 #include "sys/time.h"
@@ -39,6 +41,38 @@ static long data_num = 0;
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 
+static camera_config_t camera_config = {
+    .pin_reset = CAM_PIN_RESET,
+    .pin_xclk = CAM_PIN_XCLK,
+    .pin_sscb_sda = CAM_PIN_SIOD,
+    .pin_sscb_scl = CAM_PIN_SIOC,
+
+    .pin_d7 = CAM_PIN_D7,
+    .pin_d6 = CAM_PIN_D6,
+    .pin_d5 = CAM_PIN_D5,
+    .pin_d4 = CAM_PIN_D4,
+    .pin_d3 = CAM_PIN_D3,
+    .pin_d2 = CAM_PIN_D2,
+    .pin_d1 = CAM_PIN_D1,
+    .pin_d0 = CAM_PIN_D0,
+    .pin_vsync = CAM_PIN_VSYNC,
+    .pin_href = CAM_PIN_HREF,
+    .pin_pclk = CAM_PIN_PCLK,
+
+    //XCLK 20MHz or 10MHz
+    .xclk_freq_hz = CAM_XCLK_FREQ,
+    .ledc_timer = LEDC_TIMER_0,
+    .ledc_channel = LEDC_CHANNEL_0,
+
+    //.pixel_format = PIXFORMAT_JPEG,//YUV422,GRAYSCALE,RGB565,JPEG
+    //.frame_size = FRAMESIZE_HQVGA,//QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+    .pixel_format = PIXFORMAT_JPEG,//YUV422,GRAYSCALE,RGB565,JPEG
+    .frame_size = FRAMESIZE_QCIF,//QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+    // FRAMESIZE_QQVGA FRAMESIZE_QVGA
+    .jpeg_quality = 12, //0-63 lower number means higher quality
+    .fb_count = 2 //if more than one, i2s runs in continuous mode. Use only with JPEG
+};
+
 static void print_speed(void)
 {
     float time_old_s = time_old.tv_sec + time_old.tv_usec / 1000000.0;
@@ -50,6 +84,11 @@ static void print_speed(void)
     time_old.tv_sec = time_new.tv_sec;
     time_old.tv_usec = time_new.tv_usec;
 }
+
+// FIXME: Jank
+static int pkt_count = 0;
+static camera_fb_t * fb = NULL;
+uint32_t BYTES_PER_PACKET = 990;
 
 static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
@@ -92,11 +131,29 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT");
         break;
     case ESP_SPP_WRITE_EVT:
+        if (pkt_count * BYTES_PER_PACKET < fb->len) {
+            esp_err_t ret;
+            if ((ret =  esp_spp_write(param->data_ind.handle, fb->len - pkt_count * BYTES_PER_PACKET, fb->buf + pkt_count * BYTES_PER_PACKET)) != ESP_OK) {
+                ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n", __func__, esp_err_to_name(ret));
+                return;
+            }
+            pkt_count++;
+        }
         ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
         break;
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
         gettimeofday(&time_old, NULL);
+        pkt_count = 0;
+        fb = esp_camera_fb_get();
+        if(!fb) {
+            ESP_LOGE("camera", "Camera capture failed");
+        }
+        esp_err_t ret;
+        if ((ret =  esp_spp_write(param->data_ind.handle, sizeof(fb->len), &(fb->len))) != ESP_OK) {
+            ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n", __func__, esp_err_to_name(ret));
+            return;
+        }
         break;
     default:
         break;
@@ -166,6 +223,12 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+
+    if ((ret = esp_camera_init(&camera_config)) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s initialize camera failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
     if ((ret = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
         ESP_LOGE(SPP_TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(ret));
         return;
