@@ -127,7 +127,10 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
 #endif
         break;
     case ESP_SPP_CONG_EVT: ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT"); break;
-    case ESP_SPP_WRITE_EVT: ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT"); break;
+    case ESP_SPP_WRITE_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
+        ready = true;
+        break;
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
         gettimeofday(&time_old, NULL);
@@ -197,10 +200,13 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
 void mjpeg_stream(void* arg) {
     // Block for 500ms.
     const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
+    // Block for 10ms.
+    const TickType_t delay = 10 / portTICK_PERIOD_MS;
     ESP_LOGE("stream", "starting mjpeg stream");
     while (true) {
         if (connected) {
             ESP_LOGE("stream", "bluetooth connection established");
+            ready = true;
             while (true) {
                 pkt_count = 0;
                 fb = esp_camera_fb_get();
@@ -211,6 +217,8 @@ void mjpeg_stream(void* arg) {
                 size_t hlen =
                     snprintf((char*)header_buf, 64, _STREAM_PART, fb->len);
                 esp_err_t ret;
+                while (!ready) { vTaskDelay(delay); }
+                ready = false;
                 if ((ret = esp_spp_write(handle, hlen,
                                          (uint8_t*)&header_buf)) != ESP_OK) {
                     ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n",
@@ -220,6 +228,8 @@ void mjpeg_stream(void* arg) {
                 ESP_LOGE("stream", "send jpeg");
                 while (pkt_count * ESP_SPP_MAX_MTU < fb->len) {
                     esp_err_t ret;
+                    while (!ready) { vTaskDelay(delay); }
+                    ready = false;
                     if ((ret = esp_spp_write(
                              handle, fb->len - pkt_count * ESP_SPP_MAX_MTU,
                              fb->buf + pkt_count * ESP_SPP_MAX_MTU)) !=
