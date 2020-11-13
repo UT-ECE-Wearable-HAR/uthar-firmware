@@ -201,34 +201,39 @@ void mjpeg_stream(void* arg) {
     while (true) {
         if (connected) {
             ESP_LOGE("stream", "bluetooth connection established");
-            pkt_count = 0;
-            fb = esp_camera_fb_get();
-            if (!fb) {
-                ESP_LOGE("camera", "Camera capture failed");
-            }
-            ESP_LOGE("stream", "send header");
-            size_t hlen =
-                snprintf((char*)header_buf, 64, _STREAM_PART, fb->len);
-            esp_err_t ret;
-            if ((ret = esp_spp_write(handle, hlen, (uint8_t*)&header_buf)) !=
-                ESP_OK) {
-                ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n",
-                         __func__, esp_err_to_name(ret));
-                return;
-            }
-            ESP_LOGE("stream", "send jpeg");
-            while (pkt_count * ESP_SPP_MAX_MTU < fb->len) {
+            while (true) {
+                pkt_count = 0;
+                fb = esp_camera_fb_get();
+                if (!fb) {
+                    ESP_LOGE("camera", "Camera capture failed");
+                }
+                ESP_LOGE("stream", "send header");
+                size_t hlen =
+                    snprintf((char*)header_buf, 64, _STREAM_PART, fb->len);
                 esp_err_t ret;
-                if ((ret = esp_spp_write(
-                         handle, fb->len - pkt_count * ESP_SPP_MAX_MTU,
-                         fb->buf + pkt_count * ESP_SPP_MAX_MTU)) != ESP_OK) {
-                    ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n", __func__,
-                             esp_err_to_name(ret));
+                if ((ret = esp_spp_write(handle, hlen,
+                                         (uint8_t*)&header_buf)) != ESP_OK) {
+                    ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n",
+                             __func__, esp_err_to_name(ret));
                     return;
                 }
-                pkt_count++;
+                ESP_LOGE("stream", "send jpeg");
+                while (pkt_count * ESP_SPP_MAX_MTU < fb->len) {
+                    esp_err_t ret;
+                    if ((ret = esp_spp_write(
+                             handle, fb->len - pkt_count * ESP_SPP_MAX_MTU,
+                             fb->buf + pkt_count * ESP_SPP_MAX_MTU)) !=
+                        ESP_OK) {
+                        ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n",
+                                 __func__, esp_err_to_name(ret));
+                        return;
+                    }
+                    pkt_count++;
+                }
+                esp_camera_fb_return(fb);
+                ESP_LOGE("stream", "send complete");
+                vTaskDelay(xDelay);
             }
-            ESP_LOGE("stream", "send complete");
         }
         vTaskDelay(xDelay);
     }
