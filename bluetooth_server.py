@@ -7,9 +7,9 @@ import re
 
 def bluetooth_receive():
     data = BTsocket.recv(1024)
-    while (len(data) > 64):
+    while (len(data) != 64):
         data = BTsocket.recv(1024)
-    result = re.match(cLength, data.decode('ascii'))
+    result = re.match(cLength, data.decode('utf-8'))
     if result:
         img = bytes()
         img_size = int(result.groups('length')[0])
@@ -31,7 +31,7 @@ def main2():
     BTsocket = BluetoothSocket(RFCOMM)
     BTsocket.connect((os.environ['ESP_MAC'], 1))
     try:
-        for i in range(10):
+        for i in range(1000):
             img, size = bluetooth_receive()
             if not img:
                 continue

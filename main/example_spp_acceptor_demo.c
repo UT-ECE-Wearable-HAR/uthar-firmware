@@ -71,7 +71,7 @@ static camera_config_t camera_config = {
     .frame_size =
         FRAMESIZE_QCIF, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
     // FRAMESIZE_QQVGA FRAMESIZE_QVGA
-    .jpeg_quality = 20, // 0-63 lower number means higher quality
+    .jpeg_quality = 6, // 0-63 lower number means higher quality
     .fb_count =
         2 // if more than one, i2s runs in continuous mode. Use only with JPEG
 };
@@ -201,11 +201,15 @@ void mjpeg_stream(void* arg) {
     // Block for 500ms.
     const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
     // Block for 10ms.
-    const TickType_t delay = 10 / portTICK_PERIOD_MS;
+    const TickType_t delay = 1 / portTICK_PERIOD_MS;
+    static int64_t last_frame = 0;
+    if (!last_frame) {
+        last_frame = esp_timer_get_time();
+    }
     ESP_LOGE("stream", "starting mjpeg stream");
     while (true) {
         if (connected) {
-            ESP_LOGE("stream", "bluetooth connection established");
+            ESP_LOGI("stream", "bluetooth connection established");
             ready = true;
             while (true) {
                 pkt_count = 0;
@@ -213,7 +217,7 @@ void mjpeg_stream(void* arg) {
                 if (!fb) {
                     ESP_LOGE("camera", "Camera capture failed");
                 }
-                ESP_LOGE("stream", "send header");
+                ESP_LOGI("stream", "send header");
                 size_t hlen =
                     snprintf((char*)header_buf, 64, _STREAM_PART, fb->len);
                 esp_err_t ret;
@@ -225,7 +229,7 @@ void mjpeg_stream(void* arg) {
                              __func__, esp_err_to_name(ret));
                     return;
                 }
-                ESP_LOGE("stream", "send jpeg");
+                ESP_LOGI("stream", "send jpeg");
                 while (pkt_count * ESP_SPP_MAX_MTU < fb->len) {
                     esp_err_t ret;
                     while (!ready) { vTaskDelay(delay); }
@@ -241,8 +245,13 @@ void mjpeg_stream(void* arg) {
                     pkt_count++;
                 }
                 esp_camera_fb_return(fb);
-                ESP_LOGE("stream", "send complete");
-                vTaskDelay(xDelay);
+                ESP_LOGI("stream", "send complete");
+                int64_t fr_end = esp_timer_get_time();
+                int64_t frame_time = fr_end - last_frame;
+                last_frame = fr_end;
+                frame_time /= 1000;
+                ESP_LOGI("stream", "MJPG: %ums (%.1ffps)", (uint32_t)frame_time,
+                         1000.0 / (uint32_t)frame_time);
             }
         }
         vTaskDelay(xDelay);
