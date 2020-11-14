@@ -16,18 +16,25 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
 
+      - name: Checkout submodule
+        uses: actions/checkout@v2
+        with:
+          repository: espressif/esp32-camera
+          path: components/esp32-camera
+
       - name: build
         run: |
+          . $IDF_PATH/export.sh
           idf.py build
           cp build/partition_table/partition-table.bin .
           cp build/bootloader/bootloader.bin .
           cp build/uthar.bin .
-          tar -czvf uthar.tar.gz partition-table.bin bootloader.bin uthar.bin
+          zip uthar.zip partition-table.bin bootloader.bin uthar.bin
 
       - uses: actions/upload-artifact@v2
         with:
-          name: uthar.tar.gz
-          path: uthar.tar.gz
+          name: uthar.zip
+          path: uthar.zip
           if-no-files-found: error
 
   publish:
@@ -38,7 +45,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v2
         with:
-          name: uthar.tar.gz
+          name: uthar.zip
       - uses: meeDamian/github-release@2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -52,4 +59,4 @@ jobs:
             see the README for instructions to flash
           gzip: folders
           files: >
-            uthar.tar.gz
+            uthar.zip

@@ -1,17 +1,20 @@
 # uthar-firmware
+![CI](https://github.com/UT-ECE-Wearable-HAR/uthar-firmware/workflows/CI/badge.svg)
 
-UT HAR Wearable firmware
+## Builds
+
+You can find the latest builds on the releases tab,
+download and unzip uthar.zip then proceed to the flash instructions
 
 ## Flash Instructions
 
 Install [esptool](https://github.com/espressif/esptool)
 This can be installed through pip or through some package managers
-such as pacman on Arch
 
 Example flash command: change port to ex. COM1 on Windows
 
 ```
-esptool.py --port /dev/ttyUSB0 write_flash 0x8000 build/partition_table/partition-table.bin 0x1000 build/bootloader/bootloader.bin 0x10000 build/uthar.bin
+esptool.py --port /dev/ttyUSB0 write_flash 0x8000 partition-table.bin 0x1000 bootloader.bin 0x10000 uthar.bin
 ```
 
 ## Bluetooth Server
