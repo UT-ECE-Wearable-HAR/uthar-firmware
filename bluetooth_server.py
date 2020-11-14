@@ -7,7 +7,7 @@ import re
 
 def bluetooth_receive():
     data = BTsocket.recv(1024)
-    while (len(data) != 64):
+    while (len(data) > 64):
         data = BTsocket.recv(1024)
     result = re.match(cLength, data.decode('utf-8'))
     if result:
