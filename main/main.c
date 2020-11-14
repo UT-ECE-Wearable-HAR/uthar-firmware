@@ -1,11 +1,3 @@
-/*
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-
 #include "config.h"
 #include "esp_bt.h"
 #include "esp_bt_device.h"
@@ -26,9 +18,9 @@
 #include "sys/time.h"
 #include "time.h"
 
-#define SPP_TAG "SPP_ACCEPTOR_DEMO"
+#define SPP_TAG "UTHAR_SPP"
 #define SPP_SERVER_NAME "SPP_SERVER"
-#define EXAMPLE_DEVICE_NAME "ESP_SPP_ACCEPTOR"
+#define EXAMPLE_DEVICE_NAME "UTHAR_DEVICE"
 #define SPP_SHOW_DATA 1
 #define SPP_SHOW_SPEED 1
 #define SPP_SHOW_MODE SPP_SHOW_SPEED /*Choose show mode: show data or speed*/
@@ -76,18 +68,6 @@ static camera_config_t camera_config = {
         2 // if more than one, i2s runs in continuous mode. Use only with JPEG
 };
 
-static void print_speed(void) {
-    float time_old_s = time_old.tv_sec + time_old.tv_usec / 1000000.0;
-    float time_new_s = time_new.tv_sec + time_new.tv_usec / 1000000.0;
-    float time_interval = time_new_s - time_old_s;
-    float speed = data_num * 8 / time_interval / 1000.0;
-    ESP_LOGI(SPP_TAG, "speed(%fs ~ %fs): %f kbit/s", time_old_s, time_new_s,
-             speed);
-    data_num = 0;
-    time_old.tv_sec = time_new.tv_sec;
-    time_old.tv_usec = time_new.tv_usec;
-}
-
 // FIXME: Jank
 static int pkt_count = 0;
 static camera_fb_t* fb = NULL;
@@ -114,17 +94,9 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
     case ESP_SPP_START_EVT: ESP_LOGI(SPP_TAG, "ESP_SPP_START_EVT"); break;
     case ESP_SPP_CL_INIT_EVT: ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT"); break;
     case ESP_SPP_DATA_IND_EVT:
-#if (SPP_SHOW_MODE == SPP_SHOW_DATA)
         ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",
                  param->data_ind.len, param->data_ind.handle);
         esp_log_buffer_hex("", param->data_ind.data, param->data_ind.len);
-#else
-        gettimeofday(&time_new, NULL);
-        data_num += param->data_ind.len;
-        if (time_new.tv_sec - time_old.tv_sec >= 3) {
-            print_speed();
-        }
-#endif
         break;
     case ESP_SPP_CONG_EVT: ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT"); break;
     case ESP_SPP_WRITE_EVT:
