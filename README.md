@@ -21,4 +21,6 @@ esptool.py --port /dev/ttyUSB0 write_flash 0x8000 partition-table.bin 0x1000 boo
 
 - Install the `PyBluez` module
 - set the `ESP_MAC` environment variable to the bluetooth mac address of your esp device
+  - You can get the MAC address by running `esptool.py read_mac`
+- make sure you have paired your system with the esp device, you should only need to do this once
 - Then run `python bluetooth_server.py`
