@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from bluetooth import BluetoothSocket, RFCOMM
+from bluetooth import BluetoothSocket, RFCOMM, find_service
 import os
 import re
 
@@ -43,8 +43,9 @@ def main():
     # regex to extract length from the header
     cLength = re.compile(r"^Content-Length: (?P<length>\d+)\r\n\r\n$")
     BTsocket = BluetoothSocket(RFCOMM)
-    # grab the mac address from ESP_MAC env variable
-    BTsocket.connect((os.environ["ESP_MAC"], 1))
+    spp_service_devices = find_service(uuid="1101")
+    # connect to the first device which advertizes the SPP service
+    BTsocket.connect((spp_service_devices[0]['host'], spp_service_devices[0]['port']))
     try:
         for i in range(1000):
             img, size = bluetooth_receive()
