@@ -43,7 +43,11 @@ def main():
     # regex to extract length from the header
     cLength = re.compile(r"^Content-Length: (?P<length>\d+)\r\n\r\n$")
     BTsocket = BluetoothSocket(RFCOMM)
-    spp_service_devices = find_service(uuid="1101")
+    # search for our device
+    spp_service_devices = find_service(name="UTHAR_SERVER", uuid="1101")
+    if not len(spp_service_devices):
+        print("Device not found. Exiting...")
+        return
     # connect to the first device which advertizes the SPP service
     BTsocket.connect((spp_service_devices[0]['host'], spp_service_devices[0]['port']))
     try:

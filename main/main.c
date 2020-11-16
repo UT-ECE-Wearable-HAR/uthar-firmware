@@ -19,7 +19,7 @@
 #include "time.h"
 
 #define SPP_TAG "UTHAR_SPP"
-#define SPP_SERVER_NAME "SPP_SERVER"
+#define SPP_SERVER_NAME "UTHAR_SERVER"
 #define EXAMPLE_DEVICE_NAME "UTHAR_DEVICE"
 #define SPP_SHOW_DATA 1
 #define SPP_SHOW_SPEED 1
@@ -68,7 +68,6 @@ static camera_config_t camera_config = {
         2 // if more than one, i2s runs in continuous mode. Use only with JPEG
 };
 
-// FIXME: Jank
 static int pkt_count = 0;
 static camera_fb_t* fb = NULL;
 static volatile bool connected = false;
