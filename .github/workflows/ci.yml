@@ -1,85 +1,79 @@
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+    push:
+        branches:
+            - main
+    pull_request:
 
 name: CI
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.x"
-      - name: Install dependencies
-        run: |
-          echo "/home/runner/.local/bin" >> $GITHUB_PATH
-          sudo apt install libbluetooth-dev
-          python -m pip install --upgrade pip
-          pip install flake8
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - name: Set up Python
+              uses: actions/setup-python@v2
+              with:
+                  python-version: "3.x"
+            - name: Install dependencies
+              run: |
+                  echo "/home/runner/.local/bin" >> $GITHUB_PATH
+                  sudo apt install libbluetooth-dev
+                  python -m pip install --upgrade pip
+                  pip install flake8
+                  if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+            - name: Lint with flake8
+              run: |
+                  # stop the build if there are Python syntax errors or undefined names
+                  flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+                  # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+                  flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: lint
-    container:
-      image: espressif/idf:release-v4.1
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        needs: lint
+        container:
+            image: espressif/idf:release-v4.1
+        steps:
+            - name: Checkout sources
+              uses: actions/checkout@v2
 
-      - name: Checkout submodule
-        uses: actions/checkout@v2
-        with:
-          repository: espressif/esp32-camera
-          path: components/esp32-camera
+            - name: Checkout submodule
+              uses: actions/checkout@v2
+              with:
+                  repository: espressif/esp32-camera
+                  path: components/esp32-camera
 
-      - name: build
-        run: |
-          . $IDF_PATH/export.sh
-          idf.py build
-          cp build/partition_table/partition-table.bin .
-          cp build/bootloader/bootloader.bin .
-          cp build/uthar.bin .
-          zip uthar.zip partition-table.bin bootloader.bin uthar.bin
+            - name: build
+              run: |
+                  . $IDF_PATH/export.sh
+                  idf.py build
+                  cp build/partition_table/partition-table.bin .
+                  cp build/bootloader/bootloader.bin .
+                  cp build/uthar.bin .
+                  zip uthar.zip partition-table.bin bootloader.bin uthar.bin
 
-      - uses: actions/upload-artifact@v2
-        with:
-          name: uthar.zip
-          path: uthar.zip
-          if-no-files-found: error
+            - uses: actions/upload-artifact@v2
+              with:
+                  name: uthar.zip
+                  path: uthar.zip
+                  if-no-files-found: error
 
-  publish:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          name: uthar.zip
-      - uses: meeDamian/github-release@2.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: nightly
-          name: nightly
-          prerelease: true
-          allow_override: true
-          body: |
-            This is an auto-generated release from the last successful build
-            Unzip this file into the 3 `.bin` files then
-            see the README for instructions to flash
-          gzip: folders
-          files: >
-            uthar.zip
+    publish:
+        name: Create Release
+        needs: build
+        runs-on: ubuntu-latest
+        if: github.ref == 'refs/heads/main'
+        steps:
+            - uses: actions/download-artifact@v2
+              with:
+                  name: uthar.zip
+            - uses: marvinpinto/action-automatic-releases@latest
+              with:
+                  repo_token: ${{ secrets.GITHUB_TOKEN }}
+                  automatic_release_tag: nightly
+                  prerelease: true
+                  title: nightly
+                  files: |
+                      uthar.zip
