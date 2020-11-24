@@ -3,12 +3,15 @@
 from bluetooth import BluetoothSocket, RFCOMM, find_service
 import os
 import re
+import time
 
 
 # receive a jpeg image over bluetooth
 # the image is split into multiple packets,
 # prepended by a Content-Length header packet
 def bluetooth_receive():
+    # Awknowledge readiness to receive by sending "RCV_READY" (null-terminated)
+    BTsocket.send("RCV_READY".encode("ASCII") + b'\x00')
     # try to receive a length packet
     data = BTsocket.recv(1024)
     # if > 64, we know it's not a length packet
@@ -25,7 +28,7 @@ def bluetooth_receive():
         # continue receiving packets until we have received the full image
         while len(img) < img_size:
             img += BTsocket.recv(1024)
-            print(f"Received {len(img)} bytes...")
+            # print(f"Received {len(img)} bytes...")
 
         print("Receive complete")
     return img, img_size
@@ -44,14 +47,19 @@ def main():
     cLength = re.compile(r"^Content-Length: (?P<length>\d+)\r\n\r\n$")
     BTsocket = BluetoothSocket(RFCOMM)
     # search for our device
+    print("Searching for device...")
     spp_service_devices = find_service(name="UTHAR_SERVER", uuid="1101")
     if not len(spp_service_devices):
         print("Device not found. Exiting...")
         return
     # connect to the first device which advertizes the SPP service
+    print("Device found. Connecting...")
     BTsocket.connect((spp_service_devices[0]['host'], spp_service_devices[0]['port']))
+    start = time.time()
+    images = 1000
     try:
-        for i in range(1000):
+        for i in range(images):
+            print(f"Image {i}:")
             img, size = bluetooth_receive()
             if not img:
                 continue
@@ -59,7 +67,8 @@ def main():
                 file.write(img)
     except KeyboardInterrupt:
         BTsocket.close()
-
+    end = time.time()
+    print(f"Received {images} images in {end - start:.2f} seconds: {images/(end - start):.2f} FPS")
 
 if __name__ == "__main__":
     main()

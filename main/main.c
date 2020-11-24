@@ -25,6 +25,8 @@
 #define SPP_SHOW_SPEED 1
 #define SPP_SHOW_MODE SPP_SHOW_SPEED /*Choose show mode: show data or speed*/
 
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
 static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
 
 static struct timeval time_new, time_old;
@@ -60,18 +62,18 @@ static camera_config_t camera_config = {
     //.frame_size = FRAMESIZE_HQVGA,//QQVGA-UXGA Do not use sizes above QVGA
     // when not JPEG
     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size =
-        FRAMESIZE_QCIF, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+    .frame_size = FRAMESIZE_VGA,
+       // FRAMESIZE_QCIF, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
     // FRAMESIZE_QQVGA FRAMESIZE_QVGA
-    .jpeg_quality = 6, // 0-63 lower number means higher quality
+    .jpeg_quality = 15, // 0-63 lower number means higher quality
     .fb_count =
-        2 // if more than one, i2s runs in continuous mode. Use only with JPEG
+        1 // if more than one, i2s runs in continuous mode. Use only with JPEG
 };
 
 static int pkt_count = 0;
 static camera_fb_t* fb = NULL;
 static volatile bool connected = false;
-static volatile bool ready = false;
+static volatile bool rcv_ready = false;
 static uint32_t handle;
 static const char* _STREAM_PART = "Content-Length: %u\r\n\r\n";
 static uint8_t* header_buf[64];
@@ -96,11 +98,13 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
         ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",
                  param->data_ind.len, param->data_ind.handle);
         esp_log_buffer_hex("", param->data_ind.data, param->data_ind.len);
+        if(strcmp((char *) (param->data_ind.data), "RCV_READY") == 0) {
+            rcv_ready = true;
+        }
         break;
     case ESP_SPP_CONG_EVT: ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT"); break;
     case ESP_SPP_WRITE_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
-        ready = true;
         break;
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
@@ -182,7 +186,6 @@ void mjpeg_stream(void* arg) {
     while (true) {
         if (connected) {
             ESP_LOGI("stream", "bluetooth connection established");
-            ready = true;
             while (true) {
                 pkt_count = 0;
                 fb = esp_camera_fb_get();
@@ -193,8 +196,8 @@ void mjpeg_stream(void* arg) {
                 size_t hlen =
                     snprintf((char*)header_buf, 64, _STREAM_PART, fb->len);
                 esp_err_t ret;
-                while (!ready) { vTaskDelay(delay); }
-                ready = false;
+                while (!rcv_ready) { vTaskDelay(delay); }
+                rcv_ready = false;
                 if ((ret = esp_spp_write(handle, hlen,
                                          (uint8_t*)&header_buf)) != ESP_OK) {
                     ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n",
@@ -202,19 +205,9 @@ void mjpeg_stream(void* arg) {
                     return;
                 }
                 ESP_LOGI("stream", "send jpeg");
-                while (pkt_count * ESP_SPP_MAX_MTU < fb->len) {
-                    esp_err_t ret;
-                    while (!ready) { vTaskDelay(delay); }
-                    ready = false;
-                    if ((ret = esp_spp_write(
-                             handle, fb->len - pkt_count * ESP_SPP_MAX_MTU,
-                             fb->buf + pkt_count * ESP_SPP_MAX_MTU)) !=
-                        ESP_OK) {
-                        ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n",
-                                 __func__, esp_err_to_name(ret));
-                        return;
-                    }
-                    pkt_count++;
+                if( esp_spp_write(handle, fb->len, fb->buf) != ESP_OK) {
+                    ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n",
+                                __func__, esp_err_to_name(ret));
                 }
                 esp_camera_fb_return(fb);
                 ESP_LOGI("stream", "send complete");
