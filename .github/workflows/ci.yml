@@ -47,7 +47,7 @@ jobs:
 
             - name: build
               run: |
-                  . $IDF_PATH/export.sh
+                  source $IDF_PATH/export.sh
                   idf.py build
                   cp build/partition_table/partition-table.bin .
                   cp build/bootloader/bootloader.bin .
