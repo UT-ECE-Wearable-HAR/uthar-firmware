@@ -51,7 +51,8 @@ jobs:
                   make
                   cp build/bootloader/bootloader.bin .
                   cp build/uthar.bin .
-                  zip uthar.zip bootloader.bin uthar.bin
+                  cp build/partitions_singleapp.bin .
+                  zip uthar.zip partitions_singleapp.bin bootloader.bin uthar.bin
               shell: bash
 
             - uses: actions/upload-artifact@v2
