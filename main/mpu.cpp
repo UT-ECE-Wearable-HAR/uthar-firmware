@@ -18,11 +18,11 @@ uint16_t packetSize = 42; // expected DMP packet size (default is 42 bytes)
 uint16_t fifoCount;       // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64];   // FIFO storage buffer
 uint8_t mpuIntStatus;     // holds actual interrupt status byte from MPU
+MPU6050 mpu;
 
 extern "C" {
 
 void task_initI2C(void *ignore) {
-  printf("i2c task begin\r\n");
   i2c_config_t conf;
   conf.mode = I2C_MODE_MASTER;
   conf.sda_io_num = (gpio_num_t)PIN_SDA;
@@ -31,20 +31,51 @@ void task_initI2C(void *ignore) {
   conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
   conf.master.clk_speed = 400000;
   ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-  printf("i2c task param config\r\n");
   ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
-  printf("i2c task end\r\n");
   vTaskDelete(NULL);
 }
 
-void task_mpu6050(void *) {
-  printf("mpu6050 task begin\r\n");
-  MPU6050 mpu = MPU6050();
-  printf("mpu6050 task 1\r\n");
+void mpu_init(void) {
+  mpu = MPU6050();
   mpu.initialize();
-  printf("mpu6050 task 2\r\n");
   mpu.dmpInitialize();
-  printf("mpu6050 task 3\r\n");
+
+  // This need to be setup individually
+  mpu.setXGyroOffset(220);
+  mpu.setYGyroOffset(76);
+  mpu.setZGyroOffset(-85);
+  mpu.setZAccelOffset(1788);
+
+  mpu.setDMPEnabled(true);
+}
+
+uint8_t mpu_read(uint8_t *packet) {
+  mpuIntStatus = mpu.getIntStatus();
+  // get current FIFO count
+  fifoCount = mpu.getFIFOCount();
+
+  if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
+    // reset so we can continue cleanly
+    mpu.resetFIFO();
+
+    // otherwise, check for DMP data ready interrupt frequently)
+  } else if (mpuIntStatus & 0x02) {
+    // wait for correct available data length, should be a VERY short wait
+    while (fifoCount < packetSize)
+      fifoCount = mpu.getFIFOCount();
+
+    // read a packet from FIFO
+
+    mpu.getFIFOBytes(packet, packetSize);
+    return 0;
+  }
+  return 1;
+}
+
+void task_mpu6050(void *) {
+  MPU6050 mpu = MPU6050();
+  mpu.initialize();
+  mpu.dmpInitialize();
 
   // This need to be setup individually
   mpu.setXGyroOffset(220);

@@ -10,13 +10,17 @@ import time
 # the image is split into multiple packets,
 # prepended by a Content-Length header packet
 def bluetooth_receive():
+    global BTsocket, img, cLength
     # Awknowledge readiness to receive by sending "RCV_READY" (null-terminated)
-    BTsocket.send("RCV_READY".encode("ASCII") + b'\x00')
+    BTsocket.send("RCV_READY".encode("ASCII") + b"\x00")
     # try to receive a length packet
     data = BTsocket.recv(1024)
     # if > 64, we know it's not a length packet
-    while len(data) > 64:
+    while len(data) > 128:
         data = BTsocket.recv(1024)
+    # remove the 42 byte mpu packet
+    mpu_data = data[:42]
+    data = data[42:]
     # convert length packet to string, and regex out the length from
     # the Content-Length header
     result = re.match(cLength, data.decode("utf-8"))
@@ -47,14 +51,16 @@ def main():
     cLength = re.compile(r"^Content-Length: (?P<length>\d+)\r\n\r\n$")
     BTsocket = BluetoothSocket(RFCOMM)
     # search for our device
-    print("Searching for device...")
-    spp_service_devices = find_service(name="UTHAR_SERVER", uuid="1101")
-    if not len(spp_service_devices):
-        print("Device not found. Exiting...")
-        return
+    found = False
+    spp_service_devices = []
+    while not found:
+        print("Searching for device...")
+        spp_service_devices = find_service(name="UTHAR_SERVER", uuid="1101")
+        if len(spp_service_devices):
+            found = True
     # connect to the first device which advertizes the SPP service
     print("Device found. Connecting...")
-    BTsocket.connect((spp_service_devices[0]['host'], spp_service_devices[0]['port']))
+    BTsocket.connect((spp_service_devices[0]["host"], spp_service_devices[0]["port"]))
     start = time.time()
     images = 1000
     try:
@@ -68,7 +74,10 @@ def main():
     except KeyboardInterrupt:
         BTsocket.close()
     end = time.time()
-    print(f"Received {images} images in {end - start:.2f} seconds: {images/(end - start):.2f} FPS")
+    print(
+        f"Received {images} images in {end - start:.2f} seconds: {images/(end - start):.2f} FPS"
+    )
+
 
 if __name__ == "__main__":
     main()
