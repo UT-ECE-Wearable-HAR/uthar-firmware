@@ -16,7 +16,7 @@ Example flash command: change port to ex. COM1 on Windows
 
 ### Using esp.py wrapper
 
-Using the esp.py wrapper you can flash, run and monitor
+Using the esp.py wrapper you can flash, run and monitor \
 usage: esp.py [-h] [--flash] [--run] port
 
 ```bash
