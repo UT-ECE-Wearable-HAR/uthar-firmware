@@ -48,7 +48,7 @@ cd bindings
 make
 ```
 
-The module can be used by a script when it's in the working directory:
+The module can be used by a script when it's in the working directory  
 Available functions and types can be found using autocomplete
 ```python
 import dmp
