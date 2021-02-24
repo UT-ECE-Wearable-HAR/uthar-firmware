@@ -8,7 +8,7 @@ import argparse
 
 """
 wrapper for esptool, also lets you see serial output
-usage: esp.py [-h] [--flash] [--run] port
+usage: esp.py [-h] [--flash] [--run] [--monitor] port
 dependecies: pyserial, esptool, python 3
 """
 

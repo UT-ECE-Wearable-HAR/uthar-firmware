@@ -4,6 +4,20 @@ from bluetooth import BluetoothSocket, RFCOMM, find_service
 import os
 import re
 import time
+import math
+import bindings.dmp as dmp
+
+
+def mpu_extract(packet):
+    q = dmp.Quaternion()
+    gravity = dmp.VectorFloat()
+    dmp.dmpGetQuaternion(q, packet)
+    dmp.dmpGetGravity(gravity, q)
+    ypr = dmp.VectorFloat()
+    dmp.dmpGetYawPitchRoll(ypr, q, gravity)
+    print("YAW: %3.1f, " % (ypr.z * 180 / math.pi))
+    print("PITCH: %3.1f, " % (ypr.y * 180 / math.pi))
+    print("ROLL: %3.1f \n" % (ypr.x * 180 / math.pi))
 
 
 # receive a jpeg image over bluetooth
@@ -20,6 +34,7 @@ def bluetooth_receive():
         data = BTsocket.recv(1024)
     # remove the 42 byte mpu packet
     mpu_data = data[:42]
+    mpu_extract(mpu_data)
     data = data[42:]
     # convert length packet to string, and regex out the length from
     # the Content-Length header

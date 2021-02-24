@@ -67,6 +67,18 @@ uint8_t mpu_read(uint8_t *packet) {
     // read a packet from FIFO
 
     mpu.getFIFOBytes(packet, packetSize);
+
+    /*
+    mpu.dmpGetQuaternion(&q, packet);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+    ypr_data[0] = ypr[0] * 180 / M_PI;
+    ypr_data[1] = ypr[1] * 180 / M_PI;
+    ypr_data[2] = ypr[2] * 180 / M_PI;
+    printf("YAW: %3.1f, ", ypr[0] * 180 / M_PI);
+    printf("PITCH: %3.1f, ", ypr[1] * 180 / M_PI);
+    printf("ROLL: %3.1f \n", ypr[2] * 180 / M_PI);
+    */
     return 0;
   }
   return 1;

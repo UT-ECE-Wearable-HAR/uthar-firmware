@@ -61,12 +61,35 @@ jobs:
                   path: uthar.zip
                   if-no-files-found: error
 
+    build_bindings:
+        name: build bindings
+        runs-on: ubuntu-latest
+        needs: lint
+        steps:
+            - name: Checkout sources
+              uses: actions/checkout@v2
+            - name: build
+              run: |
+                  pip3 install pybind11
+                  echo "ext=$(python3-config --extension-suffix)" >> $GITHUB_ENV
+                  cd bindings
+                  make
+              shell: bash
+            - uses: actions/upload-artifact@v2
+              with:
+                  name: dmp.cpython-36m-x86_64-linux-gnu.so
+                  path: bindings/dmp${{ env.ext }}
+                  if-no-files-found: error
+
     publish:
         name: Create Release
-        needs: build
+        needs: [build, build_bindings]
         runs-on: ubuntu-latest
         if: github.ref == 'refs/heads/main'
         steps:
+            - uses: actions/download-artifact@v2
+              with:
+                  name: dmp.cpython-36m-x86_64-linux-gnu.so
             - uses: actions/download-artifact@v2
               with:
                   name: uthar.zip
@@ -78,3 +101,4 @@ jobs:
                   title: nightly
                   files: |
                       uthar.zip
+                      dmp.cpython-36m-x86_64-linux-gnu.so
