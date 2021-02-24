@@ -45,6 +45,8 @@ void mpu_init(void) {
   mpu.setYGyroOffset(76);
   mpu.setZGyroOffset(-85);
   mpu.setZAccelOffset(1788);
+  mpu.CalibrateAccel(6);
+  mpu.CalibrateGyro(6);
 
   mpu.setDMPEnabled(true);
 }

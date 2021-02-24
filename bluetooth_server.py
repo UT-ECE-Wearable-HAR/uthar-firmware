@@ -8,16 +8,61 @@ import math
 import bindings.dmp as dmp
 
 
+def vectorfloat_extract(f, packet, name):
+    vec = dmp.VectorFloat()
+    f(vec, packet)
+    print(f"{name}: x: {vec.x}, y: {vec.y}, z: {vec.z}")
+    return vec
+
+
+def vectorint_extract(f, packet, name):
+    vec = dmp.VectorInt16()
+    f(vec, packet)
+    print(f"{name}: x: {vec.x}, y: {vec.y}, z: {vec.z}")
+    return vec
+
+
+def vectorint_extract_accel(f, other, name, accel):
+    vec = dmp.VectorInt16()
+    f(vec, accel, other)
+    print(f"{name}: x: {vec.x}, y: {vec.y}, z: {vec.z}")
+    return vec
+
+
 def mpu_extract(packet):
     q = dmp.Quaternion()
-    gravity = dmp.VectorFloat()
     dmp.dmpGetQuaternion(q, packet)
+    print(f"quaternion: w: {q.w}, x: {q.x}, y: {q.y}, z: {q.z}")
+
+    gravity = dmp.VectorFloat()
     dmp.dmpGetGravity(gravity, q)
+    print(f"gravity: x: {gravity.x}, y: {gravity.y}, z: {gravity.z}")
+
     ypr = dmp.VectorFloat()
     dmp.dmpGetYawPitchRoll(ypr, q, gravity)
-    print("YAW: %3.1f, " % (ypr.z * 180 / math.pi))
-    print("PITCH: %3.1f, " % (ypr.y * 180 / math.pi))
-    print("ROLL: %3.1f \n" % (ypr.x * 180 / math.pi))
+    # ypr is radians, converted here to degrees for display
+    print("YAW: %3.1f" % (ypr.z * 180 / math.pi))
+    print("PITCH: %3.1f" % (ypr.y * 180 / math.pi))
+    print("ROLL: %3.1f" % (ypr.x * 180 / math.pi))
+
+    accel = vectorint_extract(dmp.dmpGetAccel, packet, "Accel")
+    vectorint_extract(dmp.dmpGetGyro, packet, "Gyro")
+
+    # remmoves gravity component from accel
+    accelReal = vectorint_extract_accel(
+        dmp.dmpGetLinearAccel, gravity, "LinearAccel", accel
+    )
+
+    # rotate measured 3D acceleration vector into original state
+    # frame of reference based on orientation quaternion
+    vectorint_extract_accel(
+        dmp.dmpGetLinearAccelInWorld, q, "LinearAccelWorld", accelReal
+    )
+
+    euler = dmp.VectorFloat()
+    dmp.dmpGetEuler(euler, q)
+    # euler angles are in radians
+    print(f"euler: psi: {euler.x}, theta: {euler.y}, phi: {euler.z}")
 
 
 # receive a jpeg image over bluetooth
@@ -80,7 +125,7 @@ def main():
     images = 1000
     try:
         for i in range(images):
-            print(f"Image {i}:")
+            print(f"\nImage {i}:")
             img, size = bluetooth_receive()
             if not img:
                 continue
