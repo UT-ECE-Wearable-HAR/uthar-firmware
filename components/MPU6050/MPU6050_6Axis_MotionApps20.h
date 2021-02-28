@@ -69,16 +69,16 @@ THE SOFTWARE.
         typedef uint16_t prog_uint16_t;
         typedef int32_t prog_int32_t;
         typedef uint32_t prog_uint32_t;
-        
+
         #define strcpy_P(dest, src) strcpy((dest), (src))
         #define strcat_P(dest, src) strcat((dest), (src))
         #define strcmp_P(a, b) strcmp((a), (b))
-        
+
         #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
         #define pgm_read_word(addr) (*(const unsigned short *)(addr))
         #define pgm_read_dword(addr) (*(const unsigned long *)(addr))
         #define pgm_read_float(addr) (*(const float *)(addr))
-        
+
         #define pgm_read_byte_near(addr) pgm_read_byte(addr)
         #define pgm_read_word_near(addr) pgm_read_word(addr)
         #define pgm_read_dword_near(addr) pgm_read_dword(addr)
@@ -307,7 +307,7 @@ const unsigned char dmpConfig[MPU6050_DMP_CONFIG_SIZE] = {
     0x07,   0x46,   0x01,   0x9A,                     // CFG_GYRO_SOURCE inv_send_gyro
     0x07,   0x47,   0x04,   0xF1, 0x28, 0x30, 0x38,   // CFG_9 inv_send_gyro -> inv_construct3_fifo
     0x07,   0x6C,   0x04,   0xF1, 0x28, 0x30, 0x38,   // CFG_12 inv_send_accel -> inv_construct3_fifo
-    0x02,   0x16,   0x02,   0x00, 0x13                // D_0_22 inv_set_fifo_rate
+    0x02,   0x16,   0x02,   0x00, 0x3                // D_0_22 inv_set_fifo_rate
 
     // This very last 0x13 WAS a 0x09, which drops the FIFO rate down to 20 Hz. 0x07 is 25 Hz,
     // 0x01 is 100Hz. Going faster than 100Hz (0x00=200Hz) tends to result in very noisy data.
@@ -740,7 +740,7 @@ uint8_t MPU6050::dmpReadAndProcessFIFOPacket(uint8_t numPackets, uint8_t *proces
 
         // process packet
         if ((status = dmpProcessFIFOPacket(buf)) > 0) return status;
-        
+
         // increment external process count variable, if supplied
         if (processed != 0) (*processed)++;
     }

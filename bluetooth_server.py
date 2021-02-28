@@ -75,12 +75,15 @@ def bluetooth_receive():
     # try to receive a length packet
     data = BTsocket.recv(1024)
     # if > 64, we know it's not a length packet
-    while len(data) > 128:
-        data = BTsocket.recv(1024)
-    # remove the 42 byte mpu packet
-    mpu_data = data[:42]
-    mpu_extract(mpu_data)
-    data = data[42:]
+    # while len(data) > 128:
+    # data = BTsocket.recv(1024)
+    # 10 mpu packets
+    for _ in range(10):
+        # remove the 42 byte mpu packet
+        mpu_data = data[:42]
+        mpu_extract(mpu_data)
+        data = data[42:]
+    print(data)
     # convert length packet to string, and regex out the length from
     # the Content-Length header
     result = re.match(cLength, data.decode("utf-8"))
@@ -123,6 +126,7 @@ def main():
     BTsocket.connect((spp_service_devices[0]["host"], spp_service_devices[0]["port"]))
     start = time.time()
     images = 1000
+    img_count = 0
     try:
         for i in range(images):
             print(f"\nImage {i}:")
@@ -131,11 +135,12 @@ def main():
                 continue
             with open(f"out/test{i}.jpeg", "wb") as file:
                 file.write(img)
+            img_count += 1
     except KeyboardInterrupt:
         BTsocket.close()
     end = time.time()
     print(
-        f"Received {images} images in {end - start:.2f} seconds: {images/(end - start):.2f} FPS"
+        f"Received {img_count} images in {end - start:.2f} seconds: {img_count/(end - start):.2f} FPS"
     )
 
 

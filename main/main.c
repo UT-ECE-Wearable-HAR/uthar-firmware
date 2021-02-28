@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "esp_spp_api.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/projdefs.h"
 #include "freertos/task.h"
 #include "nvs.h"
 #include "nvs_flash.h"
@@ -32,9 +33,6 @@ speed*/
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
-
-static struct timeval time_new, time_old;
-static long data_num = 0;
 
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
@@ -74,13 +72,11 @@ static camera_config_t camera_config = {
         1 // if more than one, i2s runs in continuous mode. Use only with JPEG
 };
 
-static int pkt_count = 0;
 static camera_fb_t *fb = NULL;
 static volatile bool connected = false;
 static volatile bool rcv_ready = false;
 static uint32_t handle;
 static const char *_STREAM_PART = "Content-Length: %u\r\n\r\n";
-static uint8_t header_buf[128];
 
 static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
   switch (event) {
@@ -121,7 +117,6 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
     break;
   case ESP_SPP_SRV_OPEN_EVT:
     ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
-    gettimeofday(&time_old, NULL);
     connected = true;
     handle = param->data_ind.handle;
     break;
@@ -191,38 +186,40 @@ void mjpeg_stream(void *arg) {
   const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
   // Block for 10ms.
   const TickType_t delay = 1 / portTICK_PERIOD_MS;
-  const TickType_t delay2 = 5 / portTICK_PERIOD_MS;
-  static int64_t last_frame = 0;
-  if (!last_frame) {
-    last_frame = esp_timer_get_time();
-  }
   mpu_init();
+  xTaskToNotify = xTaskGetCurrentTaskHandle();
+  const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1500);
   ESP_LOGI("stream", "starting mjpeg stream");
   while (true) {
     if (connected) {
       ESP_LOGI("stream", "bluetooth connection established");
+      xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
       while (true) {
-        pkt_count = 0;
         fb = esp_camera_fb_get();
         if (!fb) {
           ESP_LOGE("camera", "Camera capture failed");
         }
-        while (mpu_read((uint8_t *)&header_buf)) {
-        }
-        ESP_LOGI("stream", "send header");
-        size_t hlen = snprintf((char *)header_buf + PACKET_SIZE, 64,
+        size_t hlen = snprintf((char *)packetBuf + PACKET_SIZE*PACKET_BUF_LEN, 64,
                                _STREAM_PART, fb->len);
         esp_err_t ret;
         while (!rcv_ready) {
           vTaskDelay(delay);
         }
         rcv_ready = false;
-        if ((ret = esp_spp_write(handle, hlen + PACKET_SIZE,
-                                 (uint8_t *)&header_buf)) != ESP_OK) {
+        // block until mpu packets available
+        ESP_LOGI("stream", "wait mpu");
+        ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
+        // send mpu packets + header
+        ESP_LOGI("stream", "send header");
+        if ((ret = esp_spp_write(handle, hlen + PACKET_SIZE*PACKET_BUF_LEN,
+                                 (uint8_t *)&packetBuf)) != ESP_OK) {
           ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n", __func__,
                    esp_err_to_name(ret));
           return;
         }
+        // read multiple mpu packets
+        xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 5, NULL);
+        // send jpg
         ESP_LOGI("stream", "send jpeg");
         if (esp_spp_write(handle, fb->len, fb->buf) != ESP_OK) {
           ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n", __func__,
@@ -230,13 +227,6 @@ void mjpeg_stream(void *arg) {
         }
         esp_camera_fb_return(fb);
         ESP_LOGI("stream", "send complete");
-        int64_t fr_end = esp_timer_get_time();
-        int64_t frame_time = fr_end - last_frame;
-        last_frame = fr_end;
-        frame_time /= 1000;
-        ESP_LOGI("stream", "MJPG: %ums (%.1ffps)", (uint32_t)frame_time,
-                 1000.0 / (uint32_t)frame_time);
-        vTaskDelay(delay2);
       }
     }
     vTaskDelay(xDelay);

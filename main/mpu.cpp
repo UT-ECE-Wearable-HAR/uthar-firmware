@@ -1,5 +1,6 @@
 #include "MPU6050.h"
 #include "MPU6050_6Axis_MotionApps20.h"
+#include "freertos/projdefs.h"
 #include "sdkconfig.h"
 #include <driver/i2c.h>
 #include <esp_err.h>
@@ -9,6 +10,7 @@
 
 #define PIN_SDA 22
 #define PIN_CLK 23
+#define PACKET_BUF_LEN 10
 
 Quaternion q;        // [w, x, y, z]         quaternion container
 VectorFloat gravity; // [x, y, z]            gravity vector
@@ -67,74 +69,21 @@ uint8_t mpu_read(uint8_t *packet) {
       fifoCount = mpu.getFIFOCount();
 
     // read a packet from FIFO
-
     mpu.getFIFOBytes(packet, packetSize);
-
-    /*
-    mpu.dmpGetQuaternion(&q, packet);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    ypr_data[0] = ypr[0] * 180 / M_PI;
-    ypr_data[1] = ypr[1] * 180 / M_PI;
-    ypr_data[2] = ypr[2] * 180 / M_PI;
-    printf("YAW: %3.1f, ", ypr[0] * 180 / M_PI);
-    printf("PITCH: %3.1f, ", ypr[1] * 180 / M_PI);
-    printf("ROLL: %3.1f \n", ypr[2] * 180 / M_PI);
-    */
     return 0;
   }
   return 1;
 }
 
-void task_mpu6050(void *) {
-  MPU6050 mpu = MPU6050();
-  mpu.initialize();
-  mpu.dmpInitialize();
+uint8_t packetBuf[42*PACKET_BUF_LEN+64];
+TaskHandle_t xTaskToNotify = NULL;
 
-  // This need to be setup individually
-  mpu.setXGyroOffset(220);
-  mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(-85);
-  mpu.setZAccelOffset(1788);
-
-  mpu.setDMPEnabled(true);
-
-  // MPU6050 work LED status
-  while (1) {
-    mpuIntStatus = mpu.getIntStatus();
-    // get current FIFO count
-    fifoCount = mpu.getFIFOCount();
-
-    if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
-      // reset so we can continue cleanly
-      mpu.resetFIFO();
-
-      // otherwise, check for DMP data ready interrupt frequently)
-    } else if (mpuIntStatus & 0x02) {
-      // wait for correct available data length, should be a VERY short wait
-      while (fifoCount < packetSize)
-        fifoCount = mpu.getFIFOCount();
-
-      // read a packet from FIFO
-
-      mpu.getFIFOBytes(fifoBuffer, packetSize);
-      mpu.dmpGetQuaternion(&q, fifoBuffer);
-      mpu.dmpGetGravity(&gravity, &q);
-      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-      ypr_data[0] = ypr[0] * 180 / M_PI;
-      ypr_data[1] = ypr[1] * 180 / M_PI;
-      ypr_data[2] = ypr[2] * 180 / M_PI;
-      printf("YAW: %3.1f, ", ypr[0] * 180 / M_PI);
-      printf("PITCH: %3.1f, ", ypr[1] * 180 / M_PI);
-      printf("ROLL: %3.1f \n", ypr[2] * 180 / M_PI);
+void mpu_task(void *) {
+    for (uint8_t i = 0; i<PACKET_BUF_LEN; i++){
+        while(mpu_read(packetBuf+42*i));
+		vTaskDelay(pdMS_TO_TICKS(20));
     }
-
-    // Best result is to match with DMP refresh rate
-    // Its last value in components/MPU6050/MPU6050_6Axis_MotionApps20.h file
-    // line 310 Now its 0x13, which means DMP is refreshed with 10Hz rate
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-  }
-
-  vTaskDelete(NULL);
+    xTaskNotifyGive(xTaskToNotify);
+    vTaskDelete(NULL);
 }
 }
