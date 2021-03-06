@@ -5,64 +5,26 @@ import os
 import re
 import time
 import math
-import bindings.dmp as dmp
+import dmp
 
 
-def vectorfloat_extract(f, packet, name):
-    vec = dmp.VectorFloat()
-    f(vec, packet)
-    print(f"{name}: x: {vec.x}, y: {vec.y}, z: {vec.z}")
-    return vec
-
-
-def vectorint_extract(f, packet, name):
-    vec = dmp.VectorInt16()
-    f(vec, packet)
-    print(f"{name}: x: {vec.x}, y: {vec.y}, z: {vec.z}")
-    return vec
-
-
-def vectorint_extract_accel(f, other, name, accel):
-    vec = dmp.VectorInt16()
-    f(vec, accel, other)
-    print(f"{name}: x: {vec.x}, y: {vec.y}, z: {vec.z}")
-    return vec
+def display_data(f, packet, name):
+    data = f(packet)
+    print(f"{name}: {data}")
 
 
 def mpu_extract(packet):
-    q = dmp.Quaternion()
-    dmp.dmpGetQuaternion(q, packet)
-    print(f"quaternion: w: {q.w}, x: {q.x}, y: {q.y}, z: {q.z}")
-
-    gravity = dmp.VectorFloat()
-    dmp.dmpGetGravity(gravity, q)
-    print(f"gravity: x: {gravity.x}, y: {gravity.y}, z: {gravity.z}")
-
-    ypr = dmp.VectorFloat()
-    dmp.dmpGetYawPitchRoll(ypr, q, gravity)
-    # ypr is radians, converted here to degrees for display
-    print("YAW: %3.1f" % (ypr.z * 180 / math.pi))
-    print("PITCH: %3.1f" % (ypr.y * 180 / math.pi))
-    print("ROLL: %3.1f" % (ypr.x * 180 / math.pi))
-
-    accel = vectorint_extract(dmp.dmpGetAccel, packet, "Accel")
-    vectorint_extract(dmp.dmpGetGyro, packet, "Gyro")
-
-    # remmoves gravity component from accel
-    accelReal = vectorint_extract_accel(
-        dmp.dmpGetLinearAccel, gravity, "LinearAccel", accel
-    )
-
-    # rotate measured 3D acceleration vector into original state
-    # frame of reference based on orientation quaternion
-    vectorint_extract_accel(
-        dmp.dmpGetLinearAccelInWorld, q, "LinearAccelWorld", accelReal
-    )
-
-    euler = dmp.VectorFloat()
-    dmp.dmpGetEuler(euler, q)
-    # euler angles are in radians
-    print(f"euler: psi: {euler.x}, theta: {euler.y}, phi: {euler.z}")
+    display_data(dmp.quaternion, packet, "quaternion")
+    display_data(dmp.gravity, packet, "gravity")
+    ypr = dmp.yawPitchRoll(packet)
+    print("YAW: %3.1f" % (ypr[0] * 180 / math.pi))
+    print("PITCH: %3.1f" % (ypr[1] * 180 / math.pi))
+    print("ROLL: %3.1f" % (ypr[2] * 180 / math.pi))
+    display_data(dmp.gyro, packet, "gyro")
+    display_data(dmp.accel, packet, "accel")
+    display_data(dmp.linAccel, packet, "linAccel")
+    display_data(dmp.linAccelWorld, packet, "linAccelWorld")
+    display_data(dmp.euler, packet, "euler")
 
 
 # receive a jpeg image over bluetooth
@@ -81,9 +43,10 @@ def bluetooth_receive():
     for _ in range(10):
         # remove the 42 byte mpu packet
         mpu_data = data[:42]
+        # print(mpu_data.hex())
         mpu_extract(mpu_data)
         data = data[42:]
-    print(data)
+    # print(data)
     # convert length packet to string, and regex out the length from
     # the Content-Length header
     result = re.match(cLength, data.decode("utf-8"))

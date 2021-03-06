@@ -33,7 +33,6 @@ THE SOFTWARE.
 
 #include <math.h>
 #include <stdint.h>
-#include <pybind11/pybind11.h>
 
 class Quaternion {
     public:
