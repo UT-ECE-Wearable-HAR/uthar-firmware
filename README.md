@@ -40,19 +40,18 @@ Run command: `esptool.py --port /dev/ttyUSB0 run`
 
 ### Generate dmp Python module
 
-You can find the latest build of the dmp module in the releases tab
-To build from source install the `pybind11` module, then:
+To build from source install the `numpy`, then:
 
 ```bash
 cd bindings
-make
+python setup.py build
 ```
 
-The module can be used by a script when it's in the working directory  
+The module can be used by a script when it's in the working directory
 Available functions and types can be found using autocomplete
 ```python
 import dmp
-q = dmp.Quaternion()
+q = dmp.quaternion(packet)
 ```
 
 ### Running the Server
