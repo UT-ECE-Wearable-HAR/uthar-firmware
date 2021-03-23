@@ -63,7 +63,7 @@ jobs:
 
     publish:
         name: Create Release
-        needs: [build, build_bindings]
+        needs: build
         runs-on: ubuntu-latest
         if: github.ref == 'refs/heads/main'
         steps:
