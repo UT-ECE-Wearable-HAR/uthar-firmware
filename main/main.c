@@ -64,7 +64,7 @@ static camera_config_t camera_config = {
     //.frame_size = FRAMESIZE_HQVGA,//QQVGA-UXGA Do not use sizes above QVGA
     // when not JPEG
     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size = FRAMESIZE_VGA,
+    .frame_size = FRAMESIZE_QCIF,
     // FRAMESIZE_QCIF, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
     // FRAMESIZE_QQVGA FRAMESIZE_QVGA
     .jpeg_quality = 15, // 0-63 lower number means higher quality
