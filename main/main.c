@@ -189,7 +189,7 @@ void mjpeg_stream(void *arg) {
   mpu_init();
   xTaskToNotify = xTaskGetCurrentTaskHandle();
   const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1500);
-  const TickType_t packet_delay = pdMS_TO_TICKS(10);
+  const TickType_t packet_delay = pdMS_TO_TICKS(20);
   ESP_LOGI("stream", "starting mjpeg stream");
   while (true) {
     if (connected) {
