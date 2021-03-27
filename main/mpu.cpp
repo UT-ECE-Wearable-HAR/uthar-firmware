@@ -81,7 +81,7 @@ TaskHandle_t xTaskToNotify = NULL;
 void mpu_task(void *) {
     for (uint8_t i = 0; i<PACKET_BUF_LEN; i++){
         while(mpu_read(packetBuf+42*i));
-		vTaskDelay(pdMS_TO_TICKS(50));
+		vTaskDelay(pdMS_TO_TICKS(20));
     }
     xTaskNotifyGive(xTaskToNotify);
     vTaskDelete(NULL);

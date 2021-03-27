@@ -64,7 +64,7 @@ static camera_config_t camera_config = {
     //.frame_size = FRAMESIZE_HQVGA,//QQVGA-UXGA Do not use sizes above QVGA
     // when not JPEG
     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size = FRAMESIZE_QCIF,
+    .frame_size = FRAMESIZE_VGA,
     // FRAMESIZE_QCIF, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
     // FRAMESIZE_QQVGA FRAMESIZE_QVGA
     .jpeg_quality = 15, // 0-63 lower number means higher quality
@@ -189,6 +189,7 @@ void mjpeg_stream(void *arg) {
   mpu_init();
   xTaskToNotify = xTaskGetCurrentTaskHandle();
   const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1500);
+  const TickType_t packet_delay = pdMS_TO_TICKS(10);
   ESP_LOGI("stream", "starting mjpeg stream");
   while (true) {
     if (connected) {
@@ -199,8 +200,8 @@ void mjpeg_stream(void *arg) {
         if (!fb) {
           ESP_LOGE("camera", "Camera capture failed");
         }
-        size_t hlen = snprintf((char *)packetBuf + PACKET_SIZE*PACKET_BUF_LEN, 64,
-                               _STREAM_PART, fb->len);
+        size_t hlen = snprintf((char *)packetBuf + PACKET_SIZE * PACKET_BUF_LEN,
+                               64, _STREAM_PART, fb->len);
         esp_err_t ret;
         while (!rcv_ready) {
           vTaskDelay(delay);
@@ -211,7 +212,7 @@ void mjpeg_stream(void *arg) {
         ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
         // send mpu packets + header
         ESP_LOGI("stream", "send header");
-        if ((ret = esp_spp_write(handle, hlen + PACKET_SIZE*PACKET_BUF_LEN,
+        if ((ret = esp_spp_write(handle, hlen + PACKET_SIZE * PACKET_BUF_LEN,
                                  (uint8_t *)&packetBuf)) != ESP_OK) {
           ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n", __func__,
                    esp_err_to_name(ret));
@@ -221,9 +222,14 @@ void mjpeg_stream(void *arg) {
         xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 5, NULL);
         // send jpg
         ESP_LOGI("stream", "send jpeg");
-        if (esp_spp_write(handle, fb->len, fb->buf) != ESP_OK) {
-          ESP_LOGE(SPP_TAG, "%s frame send failed: %s\n", __func__,
-                   esp_err_to_name(ret));
+        for (uint32_t i = 0; i < fb->len; i += ESP_SPP_MAX_MTU) {
+          uint16_t length =
+              (fb->len - i) > ESP_SPP_MAX_MTU ? ESP_SPP_MAX_MTU : fb->len - i;
+          if (esp_spp_write(handle, length, fb->buf + i) != ESP_OK) {
+            ESP_LOGE(SPP_TAG, "%s frame packet send failed: %s\n", __func__,
+                     esp_err_to_name(ret));
+          }
+          vTaskDelay(packet_delay);
         }
         esp_camera_fb_return(fb);
         ESP_LOGI("stream", "send complete");
