@@ -75,6 +75,7 @@ static camera_config_t camera_config = {
 static camera_fb_t *fb = NULL;
 static volatile bool connected = false;
 static volatile bool rcv_ready = false;
+static volatile bool congested = false;
 static uint32_t handle;
 static const char *_STREAM_PART = "Content-Length: %u\r\n\r\n";
 
@@ -111,6 +112,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
     break;
   case ESP_SPP_CONG_EVT:
     ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT: %d", param->cong.cong);
+    congested = param->cong.cong;
     break;
   case ESP_SPP_WRITE_EVT:
     ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
@@ -181,6 +183,12 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param) {
   return;
 }
 
+void wait_not_congested() {
+  while (congested) {
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
 void mjpeg_stream(void *arg) {
   // Block for 500ms.
   const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
@@ -225,6 +233,7 @@ void mjpeg_stream(void *arg) {
         for (uint32_t i = 0; i < fb->len; i += ESP_SPP_MAX_MTU) {
           uint16_t length =
               (fb->len - i) > ESP_SPP_MAX_MTU ? ESP_SPP_MAX_MTU : fb->len - i;
+          wait_not_congested();
           if (esp_spp_write(handle, length, fb->buf + i) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s frame packet send failed: %s\n", __func__,
                      esp_err_to_name(ret));
