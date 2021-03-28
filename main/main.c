@@ -11,6 +11,7 @@
 #include "freertos/task.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -78,6 +79,7 @@ static volatile bool rcv_ready = false;
 static volatile bool congested = false;
 static uint32_t handle;
 static const char *_STREAM_PART = "Content-Length: %u\r\n\r\n";
+static int64_t before = 0;
 
 static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
   switch (event) {
@@ -113,6 +115,12 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
   case ESP_SPP_CONG_EVT:
     ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT: %d", param->cong.cong);
     congested = param->cong.cong;
+    if (param->cong.cong) {
+      before = esp_timer_get_time();
+    } else {
+      int64_t cong_time = (esp_timer_get_time() - before) / 1000;
+      ESP_LOGI("stream", "congested: %" PRId64 "ms", cong_time);
+    }
     break;
   case ESP_SPP_WRITE_EVT:
     ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
