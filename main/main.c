@@ -197,6 +197,8 @@ void wait_not_congested() {
   }
 }
 
+static int64_t before_frame = 0;
+
 void mjpeg_stream(void *arg) {
   // Block for 500ms.
   const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
@@ -205,13 +207,14 @@ void mjpeg_stream(void *arg) {
   mpu_init();
   xTaskToNotify = xTaskGetCurrentTaskHandle();
   const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1500);
-  const TickType_t packet_delay = pdMS_TO_TICKS(20);
+  const TickType_t packet_delay = pdMS_TO_TICKS(40);
   ESP_LOGI("stream", "starting mjpeg stream");
   while (true) {
     if (connected) {
       ESP_LOGI("stream", "bluetooth connection established");
       xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
       while (true) {
+        before_frame = esp_timer_get_time();
         fb = esp_camera_fb_get();
         if (!fb) {
           ESP_LOGE("camera", "Camera capture failed");
@@ -249,7 +252,9 @@ void mjpeg_stream(void *arg) {
           vTaskDelay(packet_delay);
         }
         esp_camera_fb_return(fb);
-        ESP_LOGI("stream", "send complete");
+        int64_t frame_time = (esp_timer_get_time() - before_frame) / 1000;
+        ESP_LOGI("stream", "%" PRId64 "ms (%.1ffps)", frame_time,
+                 1000.0 / frame_time);
       }
     }
     vTaskDelay(xDelay);
