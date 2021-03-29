@@ -86,7 +86,7 @@ void mpu_task(void *) {
     }
     vTaskDelay(pdMS_TO_TICKS(67));
   }
-  memcpy(packetBuf, packetBufCpy, 42 * PACKET_BUF_LEN + 64);
+  memcpy(packetBufCpy, packetBuf, 42 * PACKET_BUF_LEN + 64);
   xTaskNotifyGive(xTaskToNotify);
   vTaskDelete(NULL);
 }
