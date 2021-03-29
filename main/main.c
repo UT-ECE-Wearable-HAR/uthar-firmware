@@ -8,6 +8,7 @@
 #include "esp_spp_api.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/projdefs.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "nvs.h"
 #include "nvs_flash.h"
@@ -73,7 +74,7 @@ static camera_config_t camera_config = {
         1 // if more than one, i2s runs in continuous mode. Use only with JPEG
 };
 
-static camera_fb_t *fb = NULL;
+static volatile camera_fb_t *fb = NULL;
 static volatile bool connected = false;
 static volatile bool rcv_ready = false;
 static volatile bool congested = false;
@@ -204,41 +205,41 @@ void mjpeg_stream(void *arg) {
   const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
   // Block for 10ms.
   const TickType_t delay = 1 / portTICK_PERIOD_MS;
+  const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1500);
   mpu_init();
   xTaskToNotify = xTaskGetCurrentTaskHandle();
-  const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1500);
   const TickType_t packet_delay = pdMS_TO_TICKS(40);
   ESP_LOGI("stream", "starting mjpeg stream");
   while (true) {
     if (connected) {
       ESP_LOGI("stream", "bluetooth connection established");
+      // collect initial data
       xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
+      // frame loop
       while (true) {
+        ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
         before_frame = esp_timer_get_time();
+        xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
         fb = esp_camera_fb_get();
         if (!fb) {
           ESP_LOGE("camera", "Camera capture failed");
         }
-        size_t hlen = snprintf((char *)packetBuf + PACKET_SIZE * PACKET_BUF_LEN,
-                               64, _STREAM_PART, fb->len);
+        size_t hlen =
+            snprintf((char *)packetBufCpy + PACKET_SIZE * PACKET_BUF_LEN, 64,
+                     _STREAM_PART, fb->len);
         esp_err_t ret;
         while (!rcv_ready) {
           vTaskDelay(delay);
         }
         rcv_ready = false;
-        // block until mpu packets available
-        ESP_LOGI("stream", "wait mpu");
-        ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
         // send mpu packets + header
         ESP_LOGI("stream", "send header");
         if ((ret = esp_spp_write(handle, hlen + PACKET_SIZE * PACKET_BUF_LEN,
-                                 (uint8_t *)&packetBuf)) != ESP_OK) {
+                                 (uint8_t *)&packetBufCpy)) != ESP_OK) {
           ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n", __func__,
                    esp_err_to_name(ret));
           return;
         }
-        // read multiple mpu packets
-        xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 5, NULL);
         // send jpg
         ESP_LOGI("stream", "send jpeg");
         for (uint32_t i = 0; i < fb->len; i += ESP_SPP_MAX_MTU) {
@@ -251,7 +252,7 @@ void mjpeg_stream(void *arg) {
           }
           vTaskDelay(packet_delay);
         }
-        esp_camera_fb_return(fb);
+        esp_camera_fb_return((camera_fb_t *)fb);
         int64_t frame_time = (esp_timer_get_time() - before_frame) / 1000;
         ESP_LOGI("stream", "%" PRId64 "ms (%.1ffps)", frame_time,
                  1000.0 / frame_time);

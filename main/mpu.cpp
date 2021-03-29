@@ -1,3 +1,4 @@
+#include "mpu.h"
 #include "MPU6050.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "freertos/projdefs.h"
@@ -75,15 +76,18 @@ uint8_t mpu_read(uint8_t *packet) {
   return 1;
 }
 
-uint8_t packetBuf[42*PACKET_BUF_LEN+64];
+uint8_t packetBuf[42 * PACKET_BUF_LEN + 64];
+uint8_t packetBufCpy[42 * PACKET_BUF_LEN + 64];
 TaskHandle_t xTaskToNotify = NULL;
 
 void mpu_task(void *) {
-    for (uint8_t i = 0; i<PACKET_BUF_LEN; i++){
-        while(mpu_read(packetBuf+42*i));
-		vTaskDelay(pdMS_TO_TICKS(20));
+  for (uint8_t i = 0; i < PACKET_BUF_LEN; i++) {
+    while (mpu_read(packetBuf + 42 * i)) {
     }
-    xTaskNotifyGive(xTaskToNotify);
-    vTaskDelete(NULL);
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+  memcpy(packetBuf, packetBufCpy, 42 * PACKET_BUF_LEN + 64);
+  xTaskNotifyGive(xTaskToNotify);
+  vTaskDelete(NULL);
 }
 }

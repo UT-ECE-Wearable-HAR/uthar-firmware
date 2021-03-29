@@ -12,7 +12,7 @@ extern "C" {
 #define PACKET_SIZE 42
 #define PACKET_BUF_LEN 10
 
-extern uint8_t packetBuf[PACKET_SIZE*PACKET_BUF_LEN+64];
+extern uint8_t packetBufCpy[PACKET_SIZE*PACKET_BUF_LEN+64];
 extern TaskHandle_t xTaskToNotify;
 
 void task_initI2C(void *);
