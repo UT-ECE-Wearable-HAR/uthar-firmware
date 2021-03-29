@@ -84,7 +84,7 @@ void mpu_task(void *) {
   for (uint8_t i = 0; i < PACKET_BUF_LEN; i++) {
     while (mpu_read(packetBuf + 42 * i)) {
     }
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(67));
   }
   memcpy(packetBuf, packetBufCpy, 42 * PACKET_BUF_LEN + 64);
   xTaskNotifyGive(xTaskToNotify);

@@ -217,8 +217,8 @@ void mjpeg_stream(void *arg) {
       xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
       // frame loop
       while (true) {
-        ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
         before_frame = esp_timer_get_time();
+        ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
         xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
         fb = esp_camera_fb_get();
         if (!fb) {
