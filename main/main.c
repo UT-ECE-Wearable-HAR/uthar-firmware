@@ -68,7 +68,7 @@ static camera_config_t camera_config = {
     .frame_size = FRAMESIZE_240X240,
     // FRAMESIZE_QCIF, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
     // FRAMESIZE_QQVGA FRAMESIZE_QVGA
-    .jpeg_quality = 15, // 0-63 lower number means higher quality
+    .jpeg_quality = 10, // 0-63 lower number means higher quality
     .fb_count =
         1 // if more than one, i2s runs in continuous mode. Use only with JPEG
 };
