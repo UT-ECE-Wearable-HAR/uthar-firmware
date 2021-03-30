@@ -12,13 +12,13 @@ extern "C" {
 #define PACKET_SIZE 42
 #define PACKET_BUF_LEN 10
 
-extern uint8_t packetBufCpy[PACKET_SIZE*PACKET_BUF_LEN+64];
+extern uint8_t fifoBuffer[PACKET_SIZE*PACKET_BUF_LEN+64];
 extern TaskHandle_t xTaskToNotify;
 
 void task_initI2C(void *);
 void task_mpu6050(void *);
 void mpu_init(void);
-uint8_t mpu_read(uint8_t *packet);
+void mpu_read();
 void mpu_task(void *);
 
 #ifdef __cplusplus

@@ -65,7 +65,7 @@ static camera_config_t camera_config = {
     //.frame_size = FRAMESIZE_HQVGA,//QQVGA-UXGA Do not use sizes above QVGA
     // when not JPEG
     .pixel_format = PIXFORMAT_JPEG, // YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size = FRAMESIZE_VGA,
+    .frame_size = FRAMESIZE_240X240,
     // FRAMESIZE_QCIF, // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
     // FRAMESIZE_QQVGA FRAMESIZE_QVGA
     .jpeg_quality = 15, // 0-63 lower number means higher quality
@@ -204,27 +204,22 @@ void mjpeg_stream(void *arg) {
   const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
   // Block for 10ms.
   const TickType_t delay = 1 / portTICK_PERIOD_MS;
-  const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1500);
   mpu_init();
-  xTaskToNotify = xTaskGetCurrentTaskHandle();
-  const TickType_t packet_delay = pdMS_TO_TICKS(40);
+  const TickType_t packet_delay = pdMS_TO_TICKS(50);
   ESP_LOGI("stream", "starting mjpeg stream");
   while (true) {
     if (connected) {
       ESP_LOGI("stream", "bluetooth connection established");
-      // collect initial data
-      xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
       // frame loop
       while (true) {
         before_frame = esp_timer_get_time();
-        ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
-        xTaskCreate(mpu_task, "mpu_task", 4096, NULL, 6, NULL);
+        mpu_read();
         fb = esp_camera_fb_get();
         if (!fb) {
           ESP_LOGE("camera", "Camera capture failed");
         }
         size_t hlen =
-            snprintf((char *)packetBufCpy + PACKET_SIZE * PACKET_BUF_LEN, 64,
+            snprintf((char *)fifoBuffer + PACKET_SIZE * PACKET_BUF_LEN, 64,
                      _STREAM_PART, fb->len);
         esp_err_t ret;
         while (!rcv_ready) {
@@ -234,7 +229,7 @@ void mjpeg_stream(void *arg) {
         // send mpu packets + header
         ESP_LOGI("stream", "send header");
         if ((ret = esp_spp_write(handle, hlen + PACKET_SIZE * PACKET_BUF_LEN,
-                                 (uint8_t *)&packetBufCpy)) != ESP_OK) {
+                                 (uint8_t *)&fifoBuffer)) != ESP_OK) {
           ESP_LOGE(SPP_TAG, "%s content length send failed: %s\n", __func__,
                    esp_err_to_name(ret));
           return;
