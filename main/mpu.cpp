@@ -73,10 +73,8 @@ void mpu_read() {
     fifoCount = mpu.getFIFOCount();
   }
 
-  // read a packet from FIFO
-  for (uint8_t i = 0; i < PACKET_BUF_LEN; i++) {
-    mpu.getFIFOBytes(fifoBuffer + i * PACKET_SIZE, PACKET_SIZE);
-  }
+  // read 10 packets from FIFO
+  mpu.getFIFOBytes(fifoBuffer, PACKET_SIZE * PACKET_BUF_LEN);
   // empty fifo
   mpu.resetFIFO();
   int64_t frame_time = (esp_timer_get_time() - before_read) / 1000;

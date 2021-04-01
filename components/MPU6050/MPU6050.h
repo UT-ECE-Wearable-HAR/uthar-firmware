@@ -718,7 +718,7 @@ class MPU6050 {
         // FIFO_R_W register
         uint8_t getFIFOByte();
         void setFIFOByte(uint8_t data);
-        void getFIFOBytes(uint8_t *data, uint8_t length);
+        void getFIFOBytes(uint8_t *data, size_t length);
 
         // WHO_AM_I register
         uint8_t getDeviceID();

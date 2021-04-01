@@ -126,7 +126,7 @@ int8_t I2Cdev::readByte(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint16_
  * @param timeout Optional read timeout in milliseconds (0 to disable, leave off to use default class value in I2Cdev::readTimeout)
  * @return I2C_TransferReturn_TypeDef http://downloads.energymicro.com/documentation/doxygen/group__I2C.html
  */
-int8_t I2Cdev::readBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data, uint16_t timeout) {
+int8_t I2Cdev::readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data, uint16_t timeout) {
 	i2c_cmd_handle_t cmd;
 	SelectRegister(devAddr, regAddr);
 
