@@ -2,9 +2,17 @@
 
 ![CI](https://github.com/UT-ECE-Wearable-HAR/uthar-firmware/workflows/CI/badge.svg)
 
+## Introduction
+
+This firmware is meant to be used with the M5-Camera B board or equivalent.
+The starter code and documentation for the M5-Camera can be found [here](https://github.com/m5stack/M5Stack-Camera)
+
 ## Builds
 
-You can find the latest builds on the releases tab,
+To build from source install [ESP-IDF](https://github.com/espressif/esp-idf) 3.3, and follow the relevant instructions to build this firmware.
+This firmware does not support ESP-IDF versions after 3.3.
+
+You can find the latest CI builds on the releases tab,
 download and unzip uthar.zip then proceed to the flash instructions
 
 ## Flash Instructions
