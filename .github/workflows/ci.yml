@@ -38,12 +38,8 @@ jobs:
         steps:
             - name: Checkout sources
               uses: actions/checkout@v2
-
-            - name: Checkout submodule
-              uses: actions/checkout@v2
               with:
-                  repository: espressif/esp32-camera
-                  path: components/esp32-camera
+                  submodules: true
 
             - name: build
               run: |
