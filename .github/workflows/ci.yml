@@ -40,8 +40,10 @@ jobs:
               uses: actions/checkout@v2
 
             - name: Checkout esp32-camera
-              uses: expressif/esp32-camera
+              uses: actions/checkout@v2
               with:
+                  repository: expressif/esp32-camera
+                  path: components/esp32-camera
                   ref: 010709376a131c12c14bb074b6c5be82d2241338
 
             - name: build
