@@ -38,8 +38,11 @@ jobs:
         steps:
             - name: Checkout sources
               uses: actions/checkout@v2
+
+            - name: Checkout esp32-camera
+              uses: expressif/esp32-camera
               with:
-                  submodules: true
+                  ref: 010709376a131c12c14bb074b6c5be82d2241338
 
             - name: build
               run: |
